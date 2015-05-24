@@ -1,7 +1,7 @@
 import pygame
 from pygame.locals import *
 from sys import exit
-from entities import BusStop
+from entities import BusStop, Path
 from ai_algorithms.ants import Ants
 from ai_algorithms.tabu import Tabu
 
@@ -11,43 +11,61 @@ class City(object):
     
     def __init__(self):
         self.bus_stops = []
-        self.school = BusStop((300, 250), color=(255, 255, 255), radius = 7)
+        self.school = BusStop((300, 250), color=(255, 255, 255), radius=7)
         self.school.students = 0
         self.screen = pygame.display.set_mode((600, 500))
 
     def create_bus_stops(self):
+        def add_bus_stop():
+            bs = BusStop(event.pos)
+            path = Path(bs, self.school)
+            bs.paths[0] = [self.school, path]
+            self.school.paths[bs.id] = [bs, path]
+            for p in self.bus_stops:
+                path = Path(bs, p)
+                p.paths[bs.id] = [bs, path]
+                bs.paths[p.id] = [p, path]
+            self.bus_stops.append(bs)
+
+        def remove_bus_stop(stop):
+            self.bus_stops.remove(stop)
+            del self.school.paths[stop.id]
+            for b in self.bus_stops:
+                del b.paths[stop.id]
+            del stop
+
         keep = None
         while True:
             for event in pygame.event.get():
                 if event.type == QUIT:
                     exit(0)
-                    
-                klawisze = pygame.key.get_pressed()
 
-                if event.type == MOUSEBUTTONUP:
+                if event.type == MOUSEBUTTONUP and keep:
+                    keep.update_paths()
                     keep = None
 
                 elif event.type == MOUSEBUTTONDOWN:
                     for p in self.bus_stops:
                         if p.is_inside(event.pos):
                             if event.button == 3:
-                                self.bus_stops.remove(p)
+                                remove_bus_stop(p)
                             else:
-                                keep=p
+                                keep = p
                             break
-
                     if not keep and event.button != 3:
-                        nowe_punkty = []
-                        self.bus_stops.append(BusStop(event.pos))
+                        add_bus_stop()
 
                 elif event.type == MOUSEMOTION and keep:
                     keep.position = event.pos
 
-                if klawisze[K_LCTRL] and klawisze[K_n]:
-                    self.bus_stops = []
-                    BusStop.counter = 1
-                if klawisze[K_LCTRL] and klawisze[K_b]:
-                    return
+                else:
+                    keys = pygame.key.get_pressed()
+                    if keys[K_LCTRL] and keys[K_n]:
+                        self.school.paths = {}
+                        self.bus_stops = []
+                        BusStop.counter = 1
+                    if keys[K_LCTRL] and keys[K_b]:
+                        return
             self.display_update()
 
     def display_update(self):
@@ -59,26 +77,40 @@ class City(object):
 
     def run(self):        
         self.create_bus_stops()
-        # TODO: create paths
 
         run = True
-        ants = Ants(self.bus_stops)
+        step = 1
+        ants = Ants()
         tabu = Tabu()
+        buses = []
 
         while run:
-            buses = ants.divide_stops()
-            self.display_update()
-            raw_input()
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    run = False
 
-            tabu.sort_stops(buses)
-            # TODO: paths update
+                if event.type == MOUSEBUTTONDOWN:
+                    step = (step + 1) % 4
+
+            if step == 1:
+                buses = ants.divide_stops(self.school, self.bus_stops)
+                step += 1
+            elif step == 3:
+                tabu.sort_stops(buses)
+                for b in buses:
+                    b.update_pheromones()
+                for s in self.bus_stops:
+                    s.evaporation()
+                step += 1
             self.display_update()
-            run = 'end' != raw_input()
+
+        pygame.display.quit()
+        return buses
         
         
 if __name__ == '__main__':
     c = City()
-    c.run()
+    print c.run()
 
 
 

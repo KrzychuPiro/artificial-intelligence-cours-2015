@@ -2,9 +2,22 @@ from entities import BusStop, Bus
 
 
 class Ants(object):
-    def __init__(self, bus_stops):
-        self.bus_stops = bus_stops
+    def divide_stops(self, school, stops):
+        buses = []
+        b = Bus()
+        b.append(school)
 
-    def divide_stops(self):
-        # TODO: Ants alg.
-        return [Bus()]
+        # ******** example *********
+        for i in xrange(len(stops)):
+            b.append(stops[i])
+            if i % 4 == 3:
+                b.append(school)
+                buses.append(b)
+                b = Bus()
+                b.append(school)
+        if b not in buses and len(b)>1:
+            b.append(school)
+            buses.append(b)
+        # **************************
+
+        return buses
