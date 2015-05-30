@@ -96,7 +96,7 @@ class City(object):
                 buses = ants.divide_stops(self.school, self.bus_stops)
                 step += 1
             elif step == 3:
-                tabu.sort_stops(buses)
+                buses = tabu.sort_stops(buses)
                 for b in buses:
                     b.update_pheromones()
                 for s in self.bus_stops:
