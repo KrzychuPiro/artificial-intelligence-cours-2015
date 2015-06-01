@@ -41,10 +41,14 @@ class BusStop(Point):
         for p in self.paths:
             self.paths[p][1].evaporation()
 
-    def draw(self, surface):
+    def partial_draw(self, surface, id):
+        super(BusStop, self).draw(surface)
+        self.paths[id][1].draw(surface, self, self.paths[id][0])
+
+    def full_draw(self, surface):
         super(BusStop, self).draw(surface)
         for p in self.paths:
-            pygame.draw.line(surface, self.color, self.position, self.paths[p][0].position, self.paths[p][1].pheromones)
+            p[1].draw(surface, self, p[0])
 
     def __str__(self):
         return str(self.id) + ": " + super(BusStop, self).__str__()
@@ -62,18 +66,20 @@ class Path(object):
         self.distance = int(hypot(p1.position[0]-p2.position[0], p1.position[1]-p2.position[1]))
         return self.distance
 
-    def increase_pheromones(self):
-        self.pheromones += 3
-
-    def evaporation(self):
-        self.pheromones -= 1
-        if self.pheromones < 0: self.pheromones = 0
+    def increase_pheromones(self, force):
+        self.pheromones += force
 
     def __str__(self):
         return "Path(%i)" % self.distance
 
     def __repr__(self):
         return "Path(%i)" % self.distance
+
+    def draw(self, surface, p1, p2):
+        size = self.pheromones if self.pheromones < 7 else 6
+        color = p1.color if p1.id > 0 else p2.color
+        pygame.draw.line(surface, color, p1.position, p2.position, int(size))
+
 
 
 class Bus(list):
@@ -103,11 +109,13 @@ class Bus(list):
 
         self.__class__.used_colors.append(self.color)
 
-    def update_pheromones(self):
-        for i in range(len(self)-1):
-            self[i].paths[self[i+1].id][1].increase_pheromones()
-
     def append(self, item):
         if not(len(self) == 0 or item == self[0]):
             item.color = self.color
+            self.distance += item.paths[self[-1].id][1].distance
+        self.place += item.students
         super(Bus, self).append(item)
+
+    def draw(self, screen):
+        for i in range(len(self)-1):
+            self[i].partial_draw(screen, self[i+1].id)

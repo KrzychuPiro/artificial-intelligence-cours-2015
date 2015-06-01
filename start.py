@@ -14,6 +14,7 @@ class City(object):
         self.school = BusStop((300, 250), color=(255, 255, 255), radius=7)
         self.school.students = 0
         self.screen = pygame.display.set_mode((600, 500))
+        self.buses = []
 
     def create_bus_stops(self):
         def add_bus_stop():
@@ -70,6 +71,11 @@ class City(object):
 
     def display_update(self):
         self.screen.fill((150, 230, 255))
+        if self.buses:
+            for bus in self.buses: bus.draw(self.screen)
+        else:
+            for i in range(1, 7):
+                pygame.draw.circle(self.screen, (127, 127, 127), self.school.position, i*50, 1)
         self.school.draw(self.screen)  
         for i in self.bus_stops:
             i.draw(self.screen)
@@ -77,12 +83,14 @@ class City(object):
 
     def run(self):        
         self.create_bus_stops()
-
+        self.paths = set()
+        for bus in self.bus_stops:
+            self.paths.update(set(path[1] for path in bus.paths.values()))
         run = True
         step = 1
-        ants = Ants()
+        ants = Ants(self.paths)
         tabu = Tabu()
-        buses = []
+        best = 1000
 
         while run:
             for event in pygame.event.get():
@@ -93,19 +101,20 @@ class City(object):
                     step = (step + 1) % 4
 
             if step == 1:
-                buses = ants.divide_stops(self.school, self.bus_stops)
+                current = best+1
+                while current > best:
+                    self.buses = ants.divide_stops(self.school, self.bus_stops)
+                    current = len(self.buses)
+                best = current
                 step += 1
             elif step == 3:
-                buses = tabu.sort_stops(buses)
-                for b in buses:
-                    b.update_pheromones()
-                for s in self.bus_stops:
-                    s.evaporation()
+                self.buses = tabu.sort_stops(self.buses)
+                ants.update_pheromones(self.buses)
                 step += 1
             self.display_update()
 
         pygame.display.quit()
-        return buses
+        return self.buses
         
         
 if __name__ == '__main__':
