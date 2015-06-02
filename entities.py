@@ -29,6 +29,7 @@ class BusStop(Point):
     def __init__(self, *args, **kwargs):
         super(BusStop, self).__init__(*args, **kwargs)
         self.students = randint(1, 15)
+        self.sprite_students = pygame.font.SysFont("segoe print", 20).render(str(self.students), True, (0, 0, 0) )
         self.id = self.counter
         self.paths = {}
         self.__class__.counter += 1
@@ -40,6 +41,9 @@ class BusStop(Point):
     def evaporation(self):
         for p in self.paths:
             self.paths[p][1].evaporation()
+
+    def students_draw(self, surface):
+        surface.blit(self.sprite_students, [self.position[0]-10, self.position[1]-35])
 
     def partial_draw(self, surface, id):
         super(BusStop, self).draw(surface)
@@ -81,7 +85,6 @@ class Path(object):
         pygame.draw.line(surface, color, p1.position, p2.position, int(size))
 
 
-
 class Bus(list):
     max_distance = 1000
     max_place = 50
@@ -97,25 +100,54 @@ class Bus(list):
         super(Bus, self).__init__(*args, **kwargs)
         self.distance = 0
         self.place = 0
-        self.take_color()
 
-    def take_color(self):
+    def new_color(self):
         if self.colors:
             r = randint(0, len(self.colors)-1)
             self.color = self.colors[r]
             self.__class__.colors.remove(self.color)
         else:
             self.color = (randint(0, 255), randint(0, 255), randint(0, 255))
+            self.__class__.used_colors.append(self.color)
 
-        self.__class__.used_colors.append(self.color)
+    def take_color(self):
+        colors = {}
+        for i in self[1:-1]:
+            if i.color in colors:
+                colors[i.color] += 1
+            else:
+                colors[i.color] = 1
+
+        if (0, 0, 0) in colors:
+            self.new_color()
+        else:
+            colors = colors.items()
+            colors.sort(key = lambda x: x[1])
+            colors = [c[0] for c in colors]
+            empty = True
+            for color in colors:
+                if color in self.colors:
+                    empty = False
+                    self.color = color
+                    self.__class__.colors.remove(self.color)
+                    self.__class__.used_colors.append(self.color)
+                    break
+            if empty: self.new_color()
+
+        for b in self[1:-1]:
+            b.color = self.color
+
+    def reset(self):
+        self.__class__.colors += self.__class__.used_colors
+        self.__class__.used_colors = []
 
     def append(self, item):
         if not(len(self) == 0 or item == self[0]):
-            item.color = self.color
             self.distance += item.paths[self[-1].id][1].distance
         self.place += item.students
         super(Bus, self).append(item)
 
     def draw(self, screen):
+        self.take_color()
         for i in range(len(self)-1):
             self[i].partial_draw(screen, self[i+1].id)
